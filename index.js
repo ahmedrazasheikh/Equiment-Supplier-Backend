@@ -39,19 +39,19 @@ app.get('/', (req, res) => {
 });
 
 
-app.post('/api/v1/AddProduct', uploadMiddleware.any(), (req, res) => {
-  // req.body will contain the non-file fields you sent, like Name, Price, Description, etc.
-  const { Name, Price, Description, category } = req.body;
-  const files = req.body.Image;
-  // req.files will contain an array of uploaded files
-  // You can now use the data you received and perform further processing or save to a database
-  console.log('Name:', Name);
-  console.log('Price:', Price);
-  console.log('Description:', Description);
-  console.log('Category:', category);
-  const imageUrls = files.split(',');
-  console.log(imageUrls);
-  console.log(imageUrls.filename);
+// app.post('/api/v1/AddProduct', uploadMiddleware.any(), (req, res) => {
+//   // req.body will contain the non-file fields you sent, like Name, Price, Description, etc.
+//   const { Name, Price, Description, category } = req.body;
+//   const files = req.body.Image;
+//   // req.files will contain an array of uploaded files
+//   // You can now use the data you received and perform further processing or save to a database
+//   console.log('Name:', Name);
+//   console.log('Price:', Price);
+//   console.log('Description:', Description);
+//   console.log('Category:', category);
+//   const imageUrls = files.split(',');
+//   console.log(imageUrls);
+//   console.log(imageUrls.filename);
 
 
 
@@ -64,7 +64,7 @@ app.post('/api/v1/AddProduct', uploadMiddleware.any(), (req, res) => {
 
 
 
-})
+// })
   
  
 
@@ -154,86 +154,77 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// app.use('/api/v1', (req, res, next) => {
+app.use('/api/v1', (req, res, next) => {
 
-//   console.log("req.cookies: ", req.cookies.Token);
+  console.log("req.cookies: ", req.cookies.Token);
 
-//   if (!req?.cookies?.Token) {
-//     res.status(401).send({
-//       message: "include http-only credentials with every request"
-//     })
-//     return;
-//   }
+  if (!req?.cookies?.Token) {
+    res.status(401).send({
+      message: "include http-only credentials with every request"
+    })
+    return;
+  }
 
-//   jwt.verify(req.cookies.Token, SECRET, function (err, decodedData) {
-//     if (!err) {
+  jwt.verify(req.cookies.Token, SECRET, function (err, decodedData) {
+    if (!err) {
 
-//       console.log("decodedData: ", decodedData);
+      console.log("decodedData: ", decodedData);
 
-//       const nowDate = new Date().getTime() / 1000;
+      const nowDate = new Date().getTime() / 1000;
 
-//       if (decodedData.exp < nowDate) {
+      if (decodedData.exp < nowDate) {
 
-//         res.status(401);
-//         res.cookie('Token', '', {
-//           maxAge: 1,
-//           httpOnly: true,
-//           sameSite: 'none',
-//           secure: true
-//         });
-//         res.send({ message: "token expired" })
+        res.status(401);
+        res.cookie('Token', '', {
+          maxAge: 1,
+          httpOnly: true,
+          sameSite: 'none',
+          secure: true
+        });
+        res.send({ message: "token expired" })
 
-//       } else {
+      } else {
 
-//         console.log("token approved");
+        console.log("token approved");
 
-//         req.body.token = decodedData
-//         next();
-//       }
-//     } else {
-//       res.status(401).send("invalid token")
-//     }
-//   });
-// })
-// app.get('/api/v1/profile', (req, res) => {
-//   const _id = req.body.token._id
-//   const getData = async () => {
-//     try {
-//       const user = await User.findOne({ _id: _id }, "email firstName lastName -_id").exec()
-//       if (!user) {
-//         res.status(404).send({})
-//         return;
-//       } else {
+        req.body.token = decodedData
+        next();
+      }
+    } else {
+      res.status(401).send("invalid token")
+    }
+  });
+})
+app.get('/api/v1/profile', (req, res) => {
+  const _id = req.body.token._id
+  const getData = async () => {
+    try {
+      const user = await User.findOne({ _id: _id }, "email password username -_id").exec()
+      if (!user) {
+        res.status(404).send({})
+        return;
+      } else {
 
-//         res.set({
-//           "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-//           "Pragma": "no-cache",
-//           "Expires": "0",
-//           "Surrogate-Control": "no-store"
-//         });
-//         res.status(200).send(user)
-//       }
+        res.set({
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+          "Surrogate-Control": "no-store"
+        });
+        res.status(200).send(user)
+      }
 
-//     } catch (error) {
+    } catch (error) {
 
-//       console.log("error: ", error);
-//       res.status(500).send({
-//         message: "something went wrong on server",
-//       });
-//     }
+      console.log("error: ", error);
+      res.status(500).send({
+        message: "something went wrong on server",
+      });
+    }
 
-//   }
-//   getData()
-// })
-
-
-
-
-
-
-
-
-
+  }
+  getData()
+})
 
 
 // Start the server

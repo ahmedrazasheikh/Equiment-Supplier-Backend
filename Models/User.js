@@ -18,7 +18,7 @@ const productSchema = new mongoose.Schema({
     createdOn: { type: Date, default: Date.now },
   });
   
-  export const ProductModel = mongoose.model('AddProduct', productSchema);
+export const ProductModel = mongoose.model('AddProduct', productSchema);
   
 
 
