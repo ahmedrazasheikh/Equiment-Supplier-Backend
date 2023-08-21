@@ -13,50 +13,27 @@ import multer from 'multer';
 import bucket from './Bucket/Firebase.js';
 import fs from 'fs';
 import { ProductModel } from './Models/User.js';
+import path from 'path';
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false }))
 app.use(cors({
   origin: ['http://localhost:3000', "*"],
   credentials: true
 }));
-app.use(express.json());
-
-
-const storageConfig = multer.diskStorage({
+// app.use(express.json());
+const storage = multer.diskStorage({
   destination: './uploads',
   filename: function (req, file, cb) {
 
       console.log("mul-file: ", file);
       cb(null, `${new Date().getTime()}-${file.originalname}`)
   }
-})
-var uploadMiddleware = multer({ storage: storageConfig })
-
-
-// Define a basic route
-app.get('/', (req, res) => {
-  res.send('Hello, Express with ES6!');
 });
 
 
-// app.post('/api/v1/AddProduct', uploadMiddleware.any(), (req, res) => {
-//   // req.body will contain the non-file fields you sent, like Name, Price, Description, etc.
-//   const { Name, Price, Description, category } = req.body;
-//   const files = req.body.Image;
-//   // req.files will contain an array of uploaded files
-//   // You can now use the data you received and perform further processing or save to a database
-//   console.log('Name:', Name);
-//   console.log('Price:', Price);
-//   console.log('Description:', Description);
-//   console.log('Category:', category);
-//   const imageUrls = files.split(',');
-//   console.log(imageUrls);
-//   console.log(imageUrls.filename);
+const upload = multer({ storage });
 
-
-
-
-  
+app.use(express.json());
 
 
 
@@ -64,9 +41,69 @@ app.get('/', (req, res) => {
 
 
 
-// })
-  
+app.post('/api/v1/AddProduct',  upload.array('images', 5) , (req, res) => {
+  const name = req.body.Name;
+  const price = req.body.Price;
+  const value = req.body.value;
+  const description = req.body.Description;
+  const uploadedImages = req.files;
+  // console.log(uploadedImages);
+const newImageUrls = [];
+for (let i = 0; i < req.files.length; i++) {
+  const value = uploadedImages[i];
+  console.log(value);
+  bucket.upload(
+    req.files[i].path,
+    {
+        destination: `tweetPictures/${req.files[i].filename}`, // give destination name if you want to give a certain name to file in bucket, include date to make name unique otherwise it will replace previous file with the same name
+    },
+    function (err, file, apiResponse) {
+        if (!err) {
+
+            file.getSignedUrl({
+                action: 'read',
+                expires: '03-09-2999'
+            }).then((urlData, err) => {
+                if (!err) {
+                    console.log("public downloadable url: ", urlData[0]) // this is public downloadable url 
+                    newImageUrls.push(urlData[0])
+                    try {
+                        fs.unlinkSync(req.files[i].path)
+                    } catch (err) {
+                        console.error(err)
+                    }
+                }
+            })
+        } else {
+            console.log("err: ", err)
+            res.status(500).send();
+        }
+    });
+
+
+
+
+
+}
+  // Process the uploaded images and other data here
  
+
+
+
+
+  
+
+
+
+
+  
+  res.send('Images and data uploaded successfully');
+});
+
+
+
+
+
 
 
 
@@ -154,47 +191,47 @@ app.post('/login', async (req, res) => {
   }
 });
 
-app.use('/api/v1', (req, res, next) => {
+// app.use('/api/v1', (req, res, next) => {
 
-  console.log("req.cookies: ", req.cookies.Token);
+//   console.log("req.cookies: ", req.cookies.Token);
 
-  if (!req?.cookies?.Token) {
-    res.status(401).send({
-      message: "include http-only credentials with every request"
-    })
-    return;
-  }
+//   if (!req?.cookies?.Token) {
+//     res.status(401).send({
+//       message: "include http-only credentials with every request"
+//     })
+//     return;
+//   }
 
-  jwt.verify(req.cookies.Token, SECRET, function (err, decodedData) {
-    if (!err) {
+//   jwt.verify(req.cookies.Token, SECRET, function (err, decodedData) {
+//     if (!err) {
 
-      console.log("decodedData: ", decodedData);
+//       console.log("decodedData: ", decodedData);
 
-      const nowDate = new Date().getTime() / 1000;
+//       const nowDate = new Date().getTime() / 1000;
 
-      if (decodedData.exp < nowDate) {
+//       if (decodedData.exp < nowDate) {
 
-        res.status(401);
-        res.cookie('Token', '', {
-          maxAge: 1,
-          httpOnly: true,
-          sameSite: 'none',
-          secure: true
-        });
-        res.send({ message: "token expired" })
+//         res.status(401);
+//         res.cookie('Token', '', {
+//           maxAge: 1,
+//           httpOnly: true,
+//           sameSite: 'none',
+//           secure: true
+//         });
+//         res.send({ message: "token expired" })
 
-      } else {
+//       } else {
 
-        console.log("token approved");
+//         console.log("token approved");
 
-        req.body.token = decodedData
-        next();
-      }
-    } else {
-      res.status(401).send("invalid token")
-    }
-  });
-})
+//         req.body.token = decodedData
+//         next();
+//       }
+//     } else {
+//       res.status(401).send("invalid token")
+//     }
+//   });
+// })
 app.get('/api/v1/profile', (req, res) => {
   const _id = req.body.token._id
   const getData = async () => {
