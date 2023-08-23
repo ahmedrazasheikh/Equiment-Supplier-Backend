@@ -30,13 +30,8 @@ const storage = multer.diskStorage({
     cb(null, `${new Date().getTime()}-${file.originalname}`)
   }
 });
-
-
 const upload = multer({ storage });
-
 app.use(express.json());
-
-
 app.get('/api/v1/paginatpost', async (req, res) => {
   try {
     let query = tweetModel.find();
@@ -74,10 +69,6 @@ app.get('/api/v1/paginatpost', async (req, res) => {
     });
   }
 })
-
-
-
-
 app.get('/api/v1/products', async (req, res) => {
   try {
     const result = await tweetModel.find().exec(); // Using .exec() to execute the query
