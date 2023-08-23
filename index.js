@@ -12,8 +12,9 @@ import cookieParser from 'cookie-parser';
 import multer from 'multer';
 import bucket from './Bucket/Firebase.js';
 import fs from 'fs';
-import { ProductModel } from './Models/User.js';
+// import { ProductModel } from './Models/User.js';
 import path from 'path';
+import { tweetModel } from './Models/User.js';
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false }))
 app.use(cors({
@@ -25,8 +26,8 @@ const storage = multer.diskStorage({
   destination: './uploads',
   filename: function (req, file, cb) {
 
-      console.log("mul-file: ", file);
-      cb(null, `${new Date().getTime()}-${file.originalname}`)
+    console.log("mul-file: ", file);
+    cb(null, `${new Date().getTime()}-${file.originalname}`)
   }
 });
 
@@ -36,77 +37,180 @@ const upload = multer({ storage });
 app.use(express.json());
 
 
+app.get('/api/v1/paginatpost', async (req, res) => {
+  try {
+    let query = tweetModel.find();
+
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * pageSize;
+    const total = await tweetModel.countDocuments();
+
+    const pages = Math.ceil(total / pageSize);
+
+    query = query.skip(skip).limit(pageSize);
+
+    if (page > pages) {
+      return res.status(404).json({
+        status: "fail",
+        message: "No page found",
+      });
+    }
+
+    const result = await query;
+    console.log(result);
+    res.status(200).json({
+      status: "success",
+      count: result.length,
+      page,
+      pages: pages,
+      data: result,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      status: "error",
+      message: "Server Error",
+    });
+  }
+})
 
 
 
 
+app.get('/api/v1/products', async (req, res) => {
+  try {
+    const result = await tweetModel.find().exec(); // Using .exec() to execute the query
+    console.log(result);
+    res.send({
+      message: "Got all products successfully",
+      data: result
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({
+      message: "Server error"
+    });
+  }
+});
+app.delete("/api/v1/customer/:id", async (req, res) => {
+  const id = req.params.id;
 
-app.post('/api/v1/AddProduct',  upload.array('images', 5) , (req, res) => {
-  const name = req.body.Name;
-  const price = req.body.Price;
-  const value = req.body.value;
-  const description = req.body.Description;
-  const uploadedImages = req.files;
-  // console.log(uploadedImages);
-const newImageUrls = [];
-for (let i = 0; i < req.files.length; i++) {
-  const value = uploadedImages[i];
-  console.log(value);
-  bucket.upload(
-    req.files[i].path,
-    {
-        destination: `tweetPictures/${req.files[i].filename}`, // give destination name if you want to give a certain name to file in bucket, include date to make name unique otherwise it will replace previous file with the same name
-    },
-    function (err, file, apiResponse) {
+  try {
+    const deletedData = await tweetModel.deleteOne({ _id: id });
+
+    if (deletedData.deletedCount !== 0) {
+      res.send({
+        message: "Product has been deleted successfully",
+      });
+    } else {
+      res.status(404).send({
+        message: "No Product found with this id: " + id,
+      });
+    }
+  } catch (err) {
+    res.status(500).send({
+      message: "Server error",
+    });
+  }
+});
+app.post('/api/v1/AddProduct', upload.any(), (req, res) => {
+  try {
+
+
+
+    const body = req.body;
+
+    if ( // validation
+      !body.name ||
+      !body.price ||
+      !body.description
+    ) {
+      res.status(400).send({
+        message: "required parameters missing",
+      });
+      return;
+    }
+
+    console.log("req.body: ", req.body);
+    console.log("req.files: ", req.files);
+
+    console.log("uploaded file name: ", req.files[0].originalname);
+    console.log("file type: ", req.files[0].mimetype);
+    console.log("file name in server folders: ", req.files[0].filename);
+    console.log("file path in server folders: ", req.files[0].path);
+
+
+    bucket.upload(
+      req.files[0].path,
+      {
+        destination: `tweetPictures/${req.files[0].filename}`, // give destination name if you want to give a certain name to file in bucket, include date to make name unique otherwise it will replace previous file with the same name
+      },
+      function (err, file, apiResponse) {
         if (!err) {
 
-            file.getSignedUrl({
-                action: 'read',
-                expires: '03-09-2999'
-            }).then((urlData, err) => {
-                if (!err) {
-                    console.log("public downloadable url: ", urlData[0]) // this is public downloadable url 
-                    newImageUrls.push(urlData[0])
-                    try {
-                        fs.unlinkSync(req.files[i].path)
-                    } catch (err) {
-                        console.error(err)
-                    }
-                }
-            })
+          file.getSignedUrl({
+            action: 'read',
+            expires: '03-09-2999'
+          }).then((urlData, err) => {
+            if (!err) {
+              console.log("public downloadable url: ", urlData[0]) // this is public downloadable url 
+
+              try {
+                fs.unlinkSync(req.files[0].path)
+                //file removed
+              } catch (err) {
+                console.error(err)
+              }
+
+              let addPRoduct = new tweetModel({
+                name: body.name,
+                price: body.price,
+                imageUrl: urlData[0],
+                description: body.description,
+                category: body.value
+              })
+
+              addPRoduct.save().then((res) => {
+                // res.send(res)
+
+                console.log(res, "ProDUCT ADD");
+              })
+
+              // tweetModel.create({
+              //     name : body.Name,  
+              //     price: body.Price,
+              //     imageUrl: urlData[0],
+              //     description : body.Description,
+              // },
+              //     (err, saved) => {
+              //         if (!err) {
+              //             console.log("saved: ", saved);
+
+              //             res.send({
+              //                 message: "tweet added successfully"
+              //             });
+              //         } else {
+              //             console.log("err: ", err);
+              //             res.status(500).send({
+              //                 message: "server error"
+              //             })
+              //         }
+              //     })
+            }
+          })
         } else {
-            console.log("err: ", err)
-            res.status(500).send();
+          console.log("err: ", err)
+          res.status(500).send();
         }
-    });
+      });
 
 
 
-
-
-}
-  // Process the uploaded images and other data here
- 
-
-
-
-
-  
-
-
-
-
-  
-  res.send('Images and data uploaded successfully');
-});
-
-
-
-
-
-
-
-
+  } catch (error) {
+    console.log("error: ", error);
+  }
+})
 app.post('/signup', async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -191,47 +295,47 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// app.use('/api/v1', (req, res, next) => {
+app.use('/api/v1', (req, res, next) => {
 
-//   console.log("req.cookies: ", req.cookies.Token);
+  console.log("req.cookies: ", req.cookies.Token);
 
-//   if (!req?.cookies?.Token) {
-//     res.status(401).send({
-//       message: "include http-only credentials with every request"
-//     })
-//     return;
-//   }
+  if (!req?.cookies?.Token) {
+    res.status(401).send({
+      message: "include http-only credentials with every request"
+    })
+    return;
+  }
 
-//   jwt.verify(req.cookies.Token, SECRET, function (err, decodedData) {
-//     if (!err) {
+  jwt.verify(req.cookies.Token, SECRET, function (err, decodedData) {
+    if (!err) {
 
-//       console.log("decodedData: ", decodedData);
+      console.log("decodedData: ", decodedData);
 
-//       const nowDate = new Date().getTime() / 1000;
+      const nowDate = new Date().getTime() / 1000;
 
-//       if (decodedData.exp < nowDate) {
+      if (decodedData.exp < nowDate) {
 
-//         res.status(401);
-//         res.cookie('Token', '', {
-//           maxAge: 1,
-//           httpOnly: true,
-//           sameSite: 'none',
-//           secure: true
-//         });
-//         res.send({ message: "token expired" })
+        res.status(401);
+        res.cookie('Token', '', {
+          maxAge: 1,
+          httpOnly: true,
+          sameSite: 'none',
+          secure: true
+        });
+        res.send({ message: "token expired" })
 
-//       } else {
+      } else {
 
-//         console.log("token approved");
+        console.log("token approved");
 
-//         req.body.token = decodedData
-//         next();
-//       }
-//     } else {
-//       res.status(401).send("invalid token")
-//     }
-//   });
-// })
+        req.body.token = decodedData
+        next();
+      }
+    } else {
+      res.status(401).send("invalid token")
+    }
+  });
+})
 app.get('/api/v1/profile', (req, res) => {
   const _id = req.body.token._id
   const getData = async () => {
@@ -262,8 +366,6 @@ app.get('/api/v1/profile', (req, res) => {
   }
   getData()
 })
-
-
 // Start the server
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

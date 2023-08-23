@@ -9,16 +9,16 @@ const userSchema = new mongoose.Schema({
 });
 
 
+
 const productSchema = new mongoose.Schema({
-    name: { type: String },
-    price: { type: String, required: true },
-    description: { type: String, required: true },
-    imageUrls: [{ type: String }], // Use an array of strings for image URLs
-    category: { type: String, required: true },
+    name : { type: String },
+    price: { type: String , required: true },
+    description : { type: String, required: true },
+    imageUrl: { type: String  ,  required: true },
+    category: { type: String ,  required: true },
     createdOn: { type: Date, default: Date.now },
-  });
-  
-export const ProductModel = mongoose.model('AddProduct', productSchema);
+});
+export const tweetModel = mongoose.model('ProductsAll', productSchema);
   
 
 
