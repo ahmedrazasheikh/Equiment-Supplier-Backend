@@ -23,11 +23,11 @@ app.use(cors({
 }));
 // app.use(express.json());
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, '/tmp/uploads'); // Change this path to a suitable temporary location
-  },
+  destination: './uploads',
   filename: function (req, file, cb) {
-    cb(null, file.originalname);
+
+    console.log("mul-file: ", file);
+    cb(null, `${new Date().getTime()}-${file.originalname}`)
   }
 });
 const upload = multer({ storage });
