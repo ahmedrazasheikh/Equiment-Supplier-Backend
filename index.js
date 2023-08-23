@@ -32,6 +32,9 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 app.use(express.json());
+app.get('/' , (req,res)=>{
+res.send('Ahmed Raza')
+})
 app.get('/api/v1/paginatpost', async (req, res) => {
   try {
     let query = tweetModel.find();
